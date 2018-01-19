@@ -1,3 +1,5 @@
+# coding=utf-8
+
 from watchdog.events import PatternMatchingEventHandler
 from avoidingCircumstances.CutVideo import CutVideo
 from database.DBConnection import DBConnection

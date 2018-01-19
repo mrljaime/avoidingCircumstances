@@ -1,8 +1,13 @@
+# coding=utf-8
+
 import pymysql.cursors
 import requires
 
 
 class DBConnection:
+    """
+    Database wrapper
+    """
     host = None
     port = None
     database = None

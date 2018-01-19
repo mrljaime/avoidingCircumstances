@@ -1,3 +1,5 @@
+# coding=utf-8
+
 import argparse
 import time
 from watchdog.observers import Observer
@@ -6,14 +8,17 @@ import requires
 
 parser = argparse.ArgumentParser(description="Cut video at frames and send it via FTP")
 parser.add_argument("-rf", help="Path to read files", dest="rf", required=True)
+parser.add_argument("-t", help="Ticket id that store prefix of images", dest="ticket", required=True)
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
     path = args.rf
+    ticket = args.ticket
 
     requires.config.add_section("runtime")
     requires.config.set("runtime", "path", path)
+    requires.config.set("runtime", "ticket", ticket)
 
     """
         Watchdog shit
