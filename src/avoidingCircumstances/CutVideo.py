@@ -2,9 +2,11 @@
 
 import threading
 import os
+import time
 import os.path
 import uuid
 import requires
+from avoidingCircunstances.FTPClient import FTPClient
 
 
 class CutVideo(threading.Thread):
@@ -27,6 +29,7 @@ class CutVideo(threading.Thread):
 
     queue = []
     sufix = None
+    ftpClient = None
 
     def __init__(self, path_to_video, db):
         """
@@ -38,6 +41,9 @@ class CutVideo(threading.Thread):
         self.path_to_video = path_to_video
         self.db = db
         self.sufix = uuid.uuid4()
+        self.ftpClient = FTPClient(host=requires.config.get("ftp", "host"),
+                                   username=requires.config.get("ftp", "username"),
+                                   password=requires.config.get("ftp", "password"))
 
         requires.logger.debug("CutVideo instance to '%s' path video" % self.path_to_video)
 
@@ -69,6 +75,9 @@ class CutVideo(threading.Thread):
 
             os.system(command)
 
+        """
+        Start uploading pictures over FTP protocol  
+        """
         self.start_send_images()
 
     def start_send_images(self):
@@ -76,12 +85,28 @@ class CutVideo(threading.Thread):
 
         :return:
         """
+        self.ftpClient.connect()
         while True:
             if 0 == len(self.queue):
                 break
 
             i_image = self.queue[0]
             if os.path.isfile(i_image):
+                #TODO:
                 requires.logger.debug("Sending image: '%s'" % i_image)
+                descriptor = open(i_image, "rb")
+                try:
+                    self.ftpClient.send("something.jpeg", descriptor)
+                    # Has been send. Let's remove it
+                    del self.queue[0]
+
+                except ValueError as error:
+                    requires.logger.error("Error sending image over ftp, retry in 1 second: %s" % error)
+                    try:
+                        time.sleep(1)
+                    except:
+                        pass
                 # Sending
-                del self.queue[0]
+
+
+        requires.logger.debug("Nothing more to send")
