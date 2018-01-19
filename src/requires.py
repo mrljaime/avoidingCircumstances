@@ -1,12 +1,12 @@
 import os
-import configparser
+import ConfigParser
 import logging
 
 
 """
     Loading configuration 
 """
-config = configparser.ConfigParser()
+config = ConfigParser.ConfigParser()
 config.read(os.path.join(os.path.abspath(os.path.dirname(os.pardir)), "config", "app.ini"))
 
 

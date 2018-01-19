@@ -1,18 +1,30 @@
 from watchdog.events import PatternMatchingEventHandler
-from avoidingCircumstances.CuttingVideo import CuttingVideo
-import asyncio
+from avoidingCircumstances.CutVideo import CutVideo
+from database.DBConnection import DBConnection
 import requires
 
 
 class PathEventHandler(PatternMatchingEventHandler):
 
-    patterns = ["*.xml", "*.lxml"]
+    patterns = ["*.avi"]
+    ignore_patterns = ["*.log"]
+    ignore_directories = False
 
-    def __init__(self, loop):
-        super().__init__()
-        self.loop = loop
+    """
+    Database connection
+    """
+    cnx = None
+
+    def __init__(self):
+        super(PathEventHandler, self).__init__()
+        self.cnx = DBConnection(host=requires.config.get("db", "host"),
+                                port=requires.config.getint("db", "port"),
+                                username=requires.config.get("db", "username"),
+                                password=requires.config.get("db", "password"),
+                                database=requires.config.get("db", "database"))
 
         requires.logger.debug("Initialize event handler object")
+        requires.logger.debug(requires.config.get("runtime", "path"))
 
     def process(self, event):
         """
@@ -25,12 +37,15 @@ class PathEventHandler(PatternMatchingEventHandler):
         """
         requires.logger.debug("On process with source path '%s' on event '%s'" % (event.src_path, event.event_type))
 
-        if self.loop.is_running:
-            requires.logger.debug("Before calling async function over EventLoop")
-            asyncio.run_coroutine_threadsafe(self.doitAsync(event), loop=self.loop)
-        else:
-            requires.logger.error("EventLoop is not running.")
-            raise
+        cutVideo = CutVideo(event.src_path, self.cnx)
+        cutVideo.start()
+
+#        if self.loop.is_running:
+#            requires.logger.debug("Before calling async function over EventLoop")
+#            asyncio.run_coroutine_threadsafe(self.doitAsync(event), loop=self.loop)
+#        else:
+#            requires.logger.error("EventLoop is not running.")
+#            raise
 
     def on_modified(self, event):
         self.process(event=event)
@@ -40,9 +55,3 @@ class PathEventHandler(PatternMatchingEventHandler):
 
     def on_deleted(self, event):
         self.process(event=event)
-
-    async def doitAsync(self, event):
-        # TODO: Get the name of the file and call to ffmpeg cli to cut the video to sending via ftp to seproban
-        requires.logger.debug("On async function")
-        cutVideo = CuttingVideo(event.src_path)
-        cutVideo.execCommand()
