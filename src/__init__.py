@@ -36,5 +36,4 @@ if __name__ == "__main__":
         requires.logger.info("Cancel daemon by user")
         observer.stop()
 
-
     observer.join()
