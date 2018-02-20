@@ -4,6 +4,8 @@ from watchdog.events import PatternMatchingEventHandler
 from avoidingCircumstances.CutVideo import CutVideo
 from database.DBConnection import DBConnection
 import requires
+import ThreadsPool
+import threading
 
 
 class PathEventHandler(PatternMatchingEventHandler):
@@ -17,6 +19,9 @@ class PathEventHandler(PatternMatchingEventHandler):
     """
     cnx = None
 
+    threads_pool = None
+    thread_semaphore = None
+
     def __init__(self):
         super(PathEventHandler, self).__init__()
         self.cnx = DBConnection(host=requires.config.get("db", "host"),
@@ -24,6 +29,9 @@ class PathEventHandler(PatternMatchingEventHandler):
                                 username=requires.config.get("db", "username"),
                                 password=requires.config.get("db", "password"),
                                 database=requires.config.get("db", "database"))
+
+        self.threads_pool = ThreadsPool.ThreadsPool()
+        self.thread_semaphore = threading.Semaphore(10)
 
         requires.logger.debug("Initialize event handler object")
         requires.logger.debug(requires.config.get("runtime", "path"))
@@ -39,7 +47,7 @@ class PathEventHandler(PatternMatchingEventHandler):
         """
         requires.logger.debug("On process with source path '%s' on event '%s'" % (event.src_path, event.event_type))
 
-        cutVideo = CutVideo(event.src_path, self.cnx)
+        cutVideo = CutVideo(event.src_path, self.cnx, self.thread_semaphore, self.threads_pool)
         cutVideo.start()
 
 #        if self.loop.is_running:

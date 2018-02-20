@@ -6,7 +6,6 @@ import time
 import os.path
 import uuid
 import requires
-from avoidingCircunstances.FTPClient import FTPClient
 
 
 class CutVideo(threading.Thread):
@@ -31,61 +30,64 @@ class CutVideo(threading.Thread):
     sufix = None
     ftpClient = None
 
-    def __init__(self, path_to_video, db):
+    def __init__(self, path_to_video, db, semaphore, threads_pool):
         """
 
         :param path_to_video:
         :param database.DBConnection db:
+        :param thread.Semaphore semaphore:
         """
         super(CutVideo, self).__init__()
         self.path_to_video = path_to_video
         self.db = db
         self.sufix = uuid.uuid4()
-        self.ftpClient = FTPClient(host=requires.config.get("ftp", "host"),
-                                   username=requires.config.get("ftp", "username"),
-                                   password=requires.config.get("ftp", "password"))
+        self.semaphore = semaphore
+        self.threads_pool = threads_pool
 
         requires.logger.debug("CutVideo instance to '%s' path video" % self.path_to_video)
 
     def run(self):
+        self.threads_pool.make_active(self.getName())
         self.extract_frames()
+        self.threads_pool.make_inactive(self.getName())
 
     def extract_frames(self):
         """
-
         :return:
         """
-        image_name = None
+        with self.semaphore:
+            requires.logger.info("Start working in %s", self.getName())
 
-        # Sixty seconds to extract two frames by each one
-        for i in range(0, 60):
-            image_name = (
-                requires.config.get("runtime", "path") +
-                "/" +
-                "img%s_%s_%s.jpeg" % (requires.config.get("runtime", "ticket"), i, str(self.sufix))
-            )
-            self.queue.append(image_name)
+            image_name = None
 
-            command = self.PROVISIONAL_COMMAND % (
-                self.path_to_video,
-                i,
-                image_name
-            )
-            requires.logger.debug("Extract image: %s" % image_name)
+            # Sixty seconds to extract two frames by each one
+            for i in range(0, 60):
+                image_name = (
+                    requires.config.get("runtime", "path") +
+                    "/" +
+                    "img%s_%s_%s.jpeg" % (requires.config.get("runtime", "ticket"), i, str(self.sufix))
+                )
+                self.queue.append(image_name)
 
-            os.system(command)
+                command = self.PROVISIONAL_COMMAND % (
+                    self.path_to_video,
+                    i,
+                    image_name
+                )
+                requires.logger.debug("Extract image: %s" % image_name)
+
+                os.system(command)
 
         """
         Start uploading pictures over FTP protocol  
         """
-        self.start_send_images()
 
     def start_send_images(self):
         """
 
         :return:
         """
-        self.ftpClient.connect()
+        #self.ftpClient.connect()
         while True:
             if 0 == len(self.queue):
                 break
@@ -96,7 +98,7 @@ class CutVideo(threading.Thread):
                 requires.logger.debug("Sending image: '%s'" % i_image)
                 descriptor = open(i_image, "rb")
                 try:
-                    self.ftpClient.send("something.jpeg", descriptor)
+                    #self.ftpClient.send("something.jpeg", descriptor)
                     # Has been send. Let's remove it
                     del self.queue[0]
 
@@ -106,6 +108,7 @@ class CutVideo(threading.Thread):
                         time.sleep(1)
                     except:
                         pass
+                descriptor.close()
                 # Sending
 
 
